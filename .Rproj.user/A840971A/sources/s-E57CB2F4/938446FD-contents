@@ -1,0 +1,399 @@
+# 패키지 ---------------------------------------------------------------------
+library(dplyr) 
+library(car)
+library(carData)
+library(psych)
+library(ggplot2)
+library(moonBook)
+library(stringr)
+library(tidyr)
+library(readxl)
+library(forcats)
+library(psych) 
+
+# 데이터불러오기 -----------------------------------------------------------------
+order<-read_excel('data/202003order.xlsx',sheet = 1) #our original data
+colnames(order)
+names(order)[6]<-"part_n"
+names(order)[9]<-"type"
+names(order)[20]<-"age"
+names(order)[4]<-"sex_age"
+
+#'sex/age'-> converting to 'sex'
+order <-separate(order,sex_age,into=c("sex","age"))
+
+#성형외과를 유방외과와 합치기 위하여 
+order$age<-as.numeric(order$age)
+order<-order %>% mutate(part_n=case_when((part_n=='성형외과'&age<=10) ~ "소아기타",
+                                      (part_n=='성형외과'&sex=='M') ~ "성인기타",
+                                       TRUE ~part_n))
+table(order$part_n)
+mode(order$part_n)
+order$part_n<-recode(order$part_n,"'이식외과'='성인기타';'갑상선내분비외과'='성인기타';
+                     '안과'='성인기타';'피부과'='성인기타';'호흡기내과'='성인기타';
+                     '외상외과'='성인기타';'이비인후과'='성인기타';'이식외과'='성인기타';
+                     '소아외과'='소아기타';'소아신경외과'='소아기타';'피부과'='성인기타';
+                     '감염내과'='성인기타';'구강악안면외과(본원)'='성인기타';'마취통증의학과'='성인기타';
+                     '소아혈액종양과'='소아기타';'소아호흡기 알레르기과'='소아기타';'소화기내과'='성인기타';
+                     '영상의학과'='성인기타';'일반외과'='성인기타';'류마티스내과'='성인기타';'종양내과'='성인기타';
+                     '심장내과'='성인기타';'노년내과'='성인기타';'소화기내과'='성인기타';'이반외과'='성인기타';
+                     '통합내과'='성인기타';'혈액내과'='성인기타';'내분비내과'='성인기타';'신장내과'='성인기타';
+                     '재활의학과'='성인기타'")
+
+
+order$part_n
+table(order$part_n)
+order$part_n<-recode(order$part_n,"'간담췌외과'='Hepatobiliary';
+                     '대장항문외과'='Low_GI';'비뇨의학과'='URO';
+                     '산부인과'='GYN';'성인기타'='Others';
+                     '소아기타'='Others_pedi';'소아비뇨의학과'='URO_pedi';
+                     '소아정형외과'='OS_pedi';'신경외과'='Neuro';
+                     '위장관외과'='Upper_GI';'정형외과'='OS';
+                     '유방외과'='Breast/PS';'흉부외과'='CS_lung';'성형외과'='Breast/PS';'심장혈관외과'='CS_heart'")
+addmargins(table(order$part_n))
+colnames(order)
+addmargins(table(order$type))
+order$type<-recode(order$type,"'Continuous Femoral Nerve PCA (Total Knee Arthroplasty)'='Femoral Nerve PCA';
+                   'Continuous Interscalene Brachial Plexus Nerve Block by ultrasonography'='Brachial nerve PCA';
+                   'Epidural PCA infusor change (수술 후)'='Epidural PCA';'IV PCA infusor change (수술 후)'='IV PCA';
+                   'IV PCA start (수술 후)'='IV PCA';'Postoperative epidural PCA'='Epidural PCA'")
+
+addmargins(table(order$type))
+addmargins(table(order$part_n))
+order$type<-factor(order$type,levels=c("Femoral Nerve PCA","Epidural PCA","IV PCA"))#타입순서바꾸기
+order$Type<-order$type
+
+save(order, file="~/Desktop/R/newfeed/rdata/order202003.RData")
+
+#그림그리기
+load(file="rdata/order202003.RData")
+order %>% ggplot(aes(x=part_n,fill=Type))+
+  labs(x="Department",y="Count")+
+  geom_bar(colour="black",width=0.4)+
+  scale_fill_brewer(palette=4)+
+  scale_x_discrete(limits = c("Breast/PS","CS_heart","CS_lung","GYN","Hepatobiliary","Low_GI","Neuro","OS","Upper_GI","URO",
+                              "Others","URO_pedi","OS_pedi","Others_pedi"))+
+  ggtitle("PCA Usage Status by Department")+
+  scale_size_identity()
+
+#moonbook
+out<-mytable(type~part_n,data=order)
+mycsv(out,file="figure/t_count.csv")
+
+# 본격분석 --------------------------------------------------------------------
+
+data<-final
+colnames(data)
+data<-data[!is.na(data$id2)==T,]
+
+#number of missing data
+table(is.na(data$ap6))#open hear or ICU out/There are no record./after, I have to clean up, again./
+
+#or, if we had many holidays, there are many missing data. 
+which(is.na(data$ap6)) 
+count(data %>% filter(is.na(ap6))) #41개
+
+#part_renaming --------------------------------------------------------------
+data$partname
+addmargins(table(data$partname))
+data$n_part<-data$partname
+
+data$partname<-recode(data$n_part,"'이식외과'='성인기타';'갑상선내분비외과'='성인기타';
+                      '안과'='성인기타';'피부과'='성인기타';'호흡기내과'='성인기타';
+                      '외상외과'='성인기타';'이비인후과'='성인기타';'이식외과'='성인기타';
+                      '소아외과'='소아기타';'소아신경외과'='소아기타';'피부과'='성인기타';
+                      '감염내과'='성인기타';'구강악안면외과(본원)'='성인기타';'마취통증의학과'='성인기타';
+                      '소아혈액종양과'='소아기타';'소아호흡기 알레르기과'='소아기타';'소화기내과'='성인기타';
+                      '영상의학과'='성인기타';'일반외과'='성인기타';'류마티스내과'='성인기타';'종양내과'='성인기타';
+                      '심장내과'='성인기타';'노년내과'='성인기타';'소화기내과'='성인기타';'이반외과'='성인기타';
+                      '통합내과'='성인기타';'혈액내과'='성인기타';'내분비내과'='성인기타';
+                      '재활의학과'='성인기타'")
+
+
+
+data$n_part<-data$partname
+
+
+#join breast and plastic surgery
+data[data$n_part=='성형외과'&data$age<=10,"n_part"]='소아기타' #변수를 선택하여 다른 변수로 입력 
+data[data$n_part=='성형외과'&data$sex=='M',"n_part"]='성인기타'
+
+#confirming of part
+a<-filter(data,n_part=='성형외과')
+d<-filter(data,n_part=='소아기타')
+e<-filter(data,n_part=='성인기타')
+addmargins(table(data$n_part))
+
+data$n_part<-recode(data$n_part,"'간담췌외과'='Hepatobiliary';
+                    '대장항문외과'='Low_GI';'비뇨의학과'='URO';
+                    '산부인과'='GYN';'성인기타'='Others';
+                    '소아기타'='Others_pedi';'소아비뇨의학과'='URO_pedi';
+                    '소아정형외과'='OS_pedi';'신경외과'='Neuro';
+                    '위장관외과'='Upper_GI';'정형외과'='OS';
+                    '유방외과'='Breast/PS';'흉부외과'='CS_lung';'성형외과'='Breast/PS';'심장혈관외과'='CS_heart'")
+
+
+addmargins(table(data$n_part))
+colnames(data)
+str(data)
+
+# cleaning up only ward ----------------------------------------------------------------
+data$icu<-ifelse(data$icu=="ICU",5,0)
+data$ward<-ifelse(data$ward=="병동",1,0)
+
+data$icu[is.na(data$icu)]=0
+data$ward[is.na(data$ward)]=0
+
+data$icu<-as.numeric(data$icu)
+data$ward<-as.numeric(data$ward)
+
+data$out<-data$icu+data$ward
+data3<-filter(data,out<=1)
+
+table(data$icu) #icu: 61
+ward<-data3 #1,539
+
+addmargins(table(ward$type))
+# analysis of only adult -------------------------------------------------------------------
+str(ward)
+colnames(ward)
+addmargins(table(ward$n_part))
+adult<-subset(ward,
+              n_part=='CS_lung'
+              |n_part=='Breast/PS'
+              |n_part=='Hepatobiliary'
+              |n_part=='Low_GI'
+              |n_part=='Upper_GI'
+              |n_part=='GYN'
+              |n_part=='Neuro'
+              |n_part=='OS'
+              |n_part=='Others'
+              |n_part=='URO'
+)
+addmargins(table(adult$n_part))  #1,453
+
+
+#exclude of under 10
+adult<-subset(adult,age>10) #나이가 10상이상만포함: 
+addmargins(table(adult$n_part)) #1,453
+
+#verifying of child
+child=subset(ward,n_part=='URO_pedi'|n_part=='Others_pedi'|n_part=='OS_pedi')
+addmargins(table(child$n_part))  #85명
+
+
+
+#최종분석데이터:removal of imcomplete data----------------------------------------------------------------
+a<-adult[is.na(adult$rp6),] #14
+adult4<-adult[!is.na(adult$rp6),] #1439
+adult<-adult4 #최종데이터 1439
+
+
+# each part usage of PCA  --------------------------------------------------------
+#clean up# PCA renaming 
+table(adult$type)
+adult$type<-ifelse(adult$type=="Epidural","Epidural PCA",ifelse(adult$type=="IV","IV PCA","Femoral Nerve PCA"))
+addmargins(table(adult$n_part))
+addmargins(table(adult$type))
+adult$type<-fct_relevel(adult$type,c("Femoral Nerve PCA","Epidural PCA","IV PCA"))
+
+# demo table ---------------------------------------------------------------
+adult$age<-as.numeric(adult$age)
+demo<-mytable(n_part~age+sex+asa++ponv+sm+mw,data=adult)
+mycsv(demo,file="figure/demo.csv")
+
+# distribution of pain score ----------------------------------------------------------------
+#clean up# convert to numeric
+adult$rp6<-as.numeric(adult$rp6)
+adult$ap6<-as.numeric(adult$ap6)
+adult$rp24<-as.numeric(adult$rp24)
+adult$ap24<-as.numeric(adult$ap24)
+adult$rp48<-as.numeric(adult$rp48)
+adult$rp48p2<-as.numeric(adult$rp48p2)
+adult$ap48<-as.numeric(adult$ap48)
+adult$ap48p2<-as.numeric(adult$ap48p2)
+
+#clean up# union of pain score
+adult$rp48ori<-ifelse(is.na(adult$rp48)==FALSE,adult$rp48,adult$rp48p2)
+adult$ap48ori<-ifelse(is.na(adult$ap48)==FALSE,adult$ap48,adult$ap48p2)
+adult$rp48<-adult$rp48ori
+adult$ap48<-adult$ap48ori
+
+
+mytable(~rp6+ap6+rp24+ap24+rp48+ap48,data=adult,digits=2)
+
+summary(adult$rp6)
+summary(adult$ap6)
+summary(adult$rp24)
+summary(adult$ap24)
+summary(adult$rp48)
+summary(adult$ap48)
+
+
+# pain score by department ------------------------------------------------
+painscore<-mytable(n_part~rp6+ap6+rp24+ap24+rp48+ap48,data=adult,digits=2)
+mycsv(painscore,file="figure/painscore.csv")
+
+adult %>% select(rp6,ap6,rp24,ap24,rp48,ap48) %>% 
+  summarise_all(mean,na.rm=T,digits=0) 
+
+adult %>% select(rp6,ap6,rp24,ap24,rp48,ap48) %>% 
+  summarise_all(sd,na.rm=T)
+
+summary(adult$rp6)
+summary(adult$ap6)
+summary(adult$rp24)
+summary(adult$ap24)
+summary(adult$rp48)
+summary(adult$ap48)
+
+#post op 6hr resting pain 
+ggplot(adult,aes(x=n_part,y=rp6))+
+  labs(x="Department",y="Pain score")+
+  geom_boxplot(width=0.4,col="black",fill="pink")+
+  stat_summary(fun.y = "mean",geom="point",shape=21,size=2,fill="blue")+
+  scale_x_discrete(limits = c("Breast/PS","CS_lung","GYN","Hepatobiliary","Low_GI","Neuro","OS", "URO","Upper_GI",
+                              "Others"))+
+  ggtitle("Postoperative 6h maximum resting pain score by department")
+
+
+#post op 6hr acting pain  
+ggplot(adult,aes(x=n_part,y=ap6))+
+  labs(x="Department",y="Pain score")+
+  geom_boxplot(width=0.4,col="black",fill="pink")+
+  stat_summary(fun.y = "mean",geom="point",shape=21,size=2,fill="blue")+
+  scale_x_discrete(limits = c("Breast/PS","CS_lung","GYN","Hepatobiliary","Low_GI","Neuro","OS", "URO","Upper_GI",
+                              "Others"))+
+  ggtitle("Postoperative 6h maximum acting pain score by department")
+
+#post op 24hr resting pain 
+ggplot(adult,aes(x=n_part,y=rp24))+
+  labs(x="Department",y="Pain score")+
+  geom_boxplot(width=0.4,col="black",fill="pink")+
+  stat_summary(fun.y = "mean",geom="point",shape=21,size=2,fill="blue")+
+  scale_x_discrete(limits = c("Breast/PS","CS_lung","GYN","Hepatobiliary","Low_GI","Neuro","OS", "URO","Upper_GI",
+                              "Others"))+
+  ggtitle("Postoperative 24h maximum resting pain score by department")
+
+#post op 24hr acting pain
+ggplot(adult,aes(x=n_part,y=ap24))+
+  labs(x="Department",y="Pain score")+
+  geom_boxplot(width=0.4,col="black",fill="pink")+
+  stat_summary(fun.y = "mean",geom="point",shape=21,size=2,fill="blue")+
+  scale_x_discrete(limits = c("Breast/PS","CS_lung","GYN","Hepatobiliary","Low_GI","Neuro","OS", "URO","Upper_GI",
+                              "Others"))+
+  ggtitle("Postoperative 24h maximum acting pain score by department")
+
+#post op 48hr resting pain
+ggplot(adult,aes(x=n_part,y=rp48))+
+  labs(x="Department",y="Pain score")+
+  geom_boxplot(width=0.4,col="black",fill="pink")+
+  stat_summary(fun.y = "mean",geom="point",shape=21,size=1.5,fill="blue")+
+  scale_x_discrete(limits = c("Breast/PS","CS_lung","GYN","Hepatobiliary","Low_GI","Neuro","OS", "URO","Upper_GI",
+                              "Others"))+
+  ggtitle("Postoperative 48h maximum resting pain score by department")
+
+
+#post op 48hr acting pain
+ggplot(adult,aes(x=n_part,y=ap48))+
+  labs(x="Department",y="Pain score")+
+  geom_boxplot(width=0.4,col="black",fill="pink")+
+  stat_summary(fun.y = "mean",geom="point",shape=21,size=1.5,fill="blue")+
+  scale_x_discrete(limits = c("Breast/PS","CS_lung","GYN","Hepatobiliary","Low_GI","Neuro","OS", "URO","Upper_GI",
+                              "Others"))+
+  ggtitle("Postoperative 48h maximum acting pain score by department")
+
+
+
+# adverse effect -------------------------------------------------------------------
+colnames(adult)
+names(adult)[52]<-"Retching_Vomiting"
+names(adult)[54]<-"Urinary_retension"
+names(adult)[48]<-"Motor_weakness"
+se<-adult %>% select(n_part,Delirium,Dizziness,Drowsiness,Headache,Hypotension,Motor_weakness,Nausea,Numbness,Pruritus,Retching_Vomiting,Sedation,Urinary_retension,
+                     aeothers,oozing,disconnection,occlusion,withdrawal,dysfunction,sideothers)
+se[is.na(se)]="no"
+
+#PCA error
+table(adult$oozing)
+table(adult$disconnection)
+table(adult$occlusion)
+table(adult$withdrawal)
+table(adult$dysfunction)
+
+
+# 부작용빈도 -------------------------------------------------------------------
+side<-mytable(~Delirium+Dizziness+Drowsiness+Headache+Hypotension+Motor_weakness+Nausea+Numbness+Pruritus+Retching_Vomiting+Sedation+Urinary_retension,data=se)
+mycsv(side,file="side.csv")
+
+# 부작용모자이크플롯 ---------------------------------------------------------------
+#nausea
+Nausea<-table(se$n_part,se$Nausea)
+plot(Nausea)
+mosaicplot(Nausea,color=c("tan1","firebrick2"))
+
+#vomit
+Retching_Vomiting<-table(se$n_part,se$Retching_Vomiting)
+plot(Retching_Vomiting)
+mosaicplot(Retching_Vomiting,color=c("tan1","firebrick2"))
+
+#diz
+Dizziness<-table(se$n_part,se$Dizziness)
+plot(Dizziness)
+mosaicplot(Dizziness,color=c("tan1","firebrick2"))
+
+#head
+Headache<-table(se$n_part,se$Headache)
+plot(Headache)
+mosaicplot(Headache,color=c("tan1","firebrick2"))
+
+
+#hypoten
+Hypotension<-table(se$n_part,se$Hypotension)
+plot(Hypotension)
+mosaicplot(Hypotension,color=c("tan1","firebrick2"))
+
+
+#uri.r
+Urinary_retention<-table(se$n_part,se$Urinary_retension)
+plot(Urinary_retention)
+mosaicplot(Urinary_retention,color=c("tan1","firebrick2"))
+
+
+
+#seda
+Sedation<-table(se$n_part,se$Sedation)
+plot(Sedation)
+mosaicplot(Sedation,color=c("tan1","firebrick2"))
+
+
+#Dowziness
+Drowsiness<-table(se$n_part,se$Drowsiness)
+plot(Drowsiness)
+mosaicplot(Drowsiness,color=c("tan1","firebrick2"))
+
+#pruri
+Pruritus<-table(se$n_part,se$Pruritus)
+plot(Pruritus)
+mosaicplot(Pruritus,color=c("tan1","firebrick2"))
+
+#numb
+Numbness<-table(se$n_part,se$Numbness)
+plot(Numbness)
+mosaicplot(Numbness,color=c("tan1","firebrick2"))
+
+#motor
+Motor_weakness<-table(se$n_part,se$Motor_weakness)
+plot(Motor_weakness)
+mosaicplot(Motor_weakness,color=c("tan1","firebrick2"))
+
+#del
+Delirium<-table(se$n_part,se$Delirium)
+plot(Delirium)
+mosaicplot(Delirium,color=c("tan1","firebrick2"))
+
+
+
+
+
+

@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1588278978974.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "4158730426",
+    "id" : "1F80FE4C",
+    "lastKnownWriteTime" : 1588245383,
+    "last_content_update" : 1588245383,
+    "path" : "~/data_science_project/cleaning_visual.Rmd",
+    "project_path" : "cleaning_visual.Rmd",
+    "properties" : {
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

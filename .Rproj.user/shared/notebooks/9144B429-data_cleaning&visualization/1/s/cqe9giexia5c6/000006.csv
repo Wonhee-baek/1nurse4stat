@@ -1,0 +1,25 @@
+"0","
+
+# data import -------------------------------------------------------------
+data<-read_csv(""~/data_science_project/data/2019.06~2019.12.csv"")
+"
+"2","Missing column names filled in: 'X1' [1]"
+"2","Parsed with column specification:
+cols(
+  X1 = [32mcol_double()[39m,
+  name = [31mcol_character()[39m,
+  production = [31mcol_character()[39m,
+  distributor = [31mcol_character()[39m,
+  artist = [31mcol_character()[39m,
+  time = [31mcol_character()[39m,
+  score = [32mcol_double()[39m,
+  rank = [32mcol_double()[39m,
+  genre = [31mcol_character()[39m,
+  runtime = [34mcol_time(format = """")[39m,
+  sex = [31mcol_character()[39m,
+  active_type = [31mcol_character()[39m
+)
+"
+"0","#고유 번호(id)만들기"
+"0","data$X1<-data$X1+1"
+"0","names(data)[1]<-""id"""
